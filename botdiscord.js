@@ -375,20 +375,14 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.commandName === 'aide') {
-    const embed = new EmbedBuilder()
-      .setTitle('📋 Commandes disponibles')
-      .setColor(0x5865F2)
-      .addFields(
-        { name: '🏓 /ping', value: 'Répond avec Pong', inline: true },
-        { name: '📺 /chaine', value: 'Lien vers la chaîne YouTube', inline: true },
-        { name: '🎬 /video', value: 'Dernière vidéo YouTube', inline: true },
-        { name: '🚨 /report [@user] [raison]', value: 'Signale un utilisateur', inline: true },
-        { name: '📢 /message [titre] [contenu]', value: 'Envoie une annonce stylée (staff)', inline: false },
-        { name: '🎉 .giveaway [titre] | [prix] | [min]', value: 'Lance un giveaway (staff)', inline: false },
-      )
-      .setFooter({ text: 'Bot Azaleees' })
-      .setTimestamp();
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(
+      '📋 **Commandes disponibles :**\n' +
+      '/ping - Répond Pong 🏓\n' +
+      '/aide - Affiche cette aide\n' +
+      '/chaine - Lien vers la chaîne YouTube Azaleees\n' +
+      '/video - Lien vers la dernière vidéo YouTube\n' +
+      '/report [@user] [raison] - Reporte un utilisateur au staff'
+    );
     return;
   }
 
