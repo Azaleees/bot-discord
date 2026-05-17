@@ -377,11 +377,11 @@ client.on('interactionCreate', async interaction => {
   if (interaction.commandName === 'aide') {
     await interaction.reply(
       '📋 **Commandes disponibles :**\n' +
-      '/ping - Répond Pong 🏓\n' +
-      '/aide - Affiche cette aide\n' +
-      '/chaine - Lien vers la chaîne YouTube Azaleees\n' +
-      '/video - Lien vers la dernière vidéo YouTube\n' +
-      '/report [@user] [raison] - Reporte un utilisateur au staff'
+      '**/ping** - *Répond Pong 🏓*\n' +
+      '**/aide** - *Affiche cette aide*\n' +
+      '**/chaine** - *Lien vers la chaîne YouTube Azalee*\n' +
+      '**/video** - *Lien vers la dernière vidéo YouTube*\n' +
+      '**/report** [@user] [raison] - *Reporte un utilisateur au staff*'
     );
     return;
   }
