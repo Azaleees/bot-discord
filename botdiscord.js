@@ -14,12 +14,11 @@ if (!DISCORD_TOKEN || DISCORD_TOKEN === 'TON_TOKEN_ICI' || !CLIENT_ID || CLIENT_
 const REPORT_CHANNEL_ID = '1398187982422278231';
 const YOUTUBE_CHANNEL_URL = 'https://www.youtube.com/@Azaleees';
 const ACTIVITY_ROLE_ID = '1398187980664868896';
-const TICKET_CATEGORY_ID = '1398195786734506044';
 const STAFF_ROLE_IDS = ['1457386435090059407', '1398187980664868895'];
 const GIVEAWAY_ROLE_ID = '1398187980664868896';
 const GIVEAWAY_PING_ROLE_ID = '1398187980618727565';
 const MOD_ROLE_ID = '1398187980664868896';
-const ANNONCE_ROLE_ID = '1398187980664868896'; // Rôle autorisé à faire /message
+const ANNONCE_ROLE_ID = '1398187980664868896'; // Rôle autorisé à faire .message
 
 const getLatestVideoUrl = () => {
   return new Promise((resolve, reject) => {
@@ -133,15 +132,6 @@ const commands = [
     .setName('video')
     .setDescription('Donne un lien vers la dernière vidéo YouTube'),
   new SlashCommandBuilder()
-    .setName('ticket')
-    .setDescription('Ouvre un ticket pour contacter le staff')
-    .addStringOption(option =>
-      option.setName('sujet').setDescription('Le sujet de ton ticket').setRequired(true)
-    ),
-  new SlashCommandBuilder()
-    .setName('fermer-ticket')
-    .setDescription('Ferme et supprime le ticket (staff uniquement)'),
-  new SlashCommandBuilder()
     .setName('report')
     .setDescription('Reporte un utilisateur au staff')
     .addUserOption(option =>
@@ -150,51 +140,6 @@ const commands = [
     .addStringOption(option =>
       option.setName('raison').setDescription('Raison du report').setRequired(true)
     ),
-  // ─── NOUVELLE COMMANDE /message ───────────────────────────────────────────
-  new SlashCommandBuilder()
-    .setName('message')
-    .setDescription('Envoie une annonce stylée dans un salon (staff uniquement)')
-    .addStringOption(option =>
-      option.setName('titre')
-        .setDescription('Titre de l\'annonce')
-        .setRequired(true)
-    )
-    .addStringOption(option =>
-      option.setName('contenu')
-        .setDescription('Contenu du message (utilise \\n pour les sauts de ligne)')
-        .setRequired(true)
-    )
-    .addChannelOption(option =>
-      option.setName('salon')
-        .setDescription('Salon où envoyer l\'annonce (salon actuel par défaut)')
-        .setRequired(false)
-        .addChannelTypes(ChannelType.GuildText)
-    )
-    .addStringOption(option =>
-      option.setName('couleur')
-        .setDescription('Couleur de l\'embed')
-        .setRequired(false)
-        .addChoices(
-          { name: '💜 Violet (défaut)', value: 'violet' },
-          { name: '💙 Bleu', value: 'bleu' },
-          { name: '💚 Vert', value: 'vert' },
-          { name: '❤️ Rouge', value: 'rouge' },
-          { name: '🧡 Orange', value: 'orange' },
-          { name: '💛 Jaune', value: 'jaune' },
-          { name: '🩷 Rose', value: 'rose' },
-        )
-    )
-    .addStringOption(option =>
-      option.setName('image')
-        .setDescription('URL d\'une image à afficher dans l\'annonce (optionnel)')
-        .setRequired(false)
-    )
-    .addBooleanOption(option =>
-      option.setName('ping')
-        .setDescription('Mentionner @everyone ? (false par défaut)')
-        .setRequired(false)
-    ),
-  // ─────────────────────────────────────────────────────────────────────────
 ].map(command => command.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
@@ -277,6 +222,97 @@ client.on('messageCreate', async message => {
     return;
   }
 
+  // .message titre | contenu | #salon(optionnel) | couleur(optionnel) | ping(optionnel)
+  // Exemple : .message Titre | Contenu du message | #annonces | rose | true
+  if (content.startsWith('.message ')) {
+    const hasRole = message.member && message.member.roles.cache.has(ANNONCE_ROLE_ID);
+    if (!hasRole) {
+      await message.delete().catch(() => {});
+      return;
+    }
+
+    const args = content.slice('.message '.length).trim();
+    if (!args) {
+      await message.reply('❌ Usage : `.message titre | contenu | #salon(opt) | couleur(opt) | ping(opt)`');
+      return;
+    }
+
+    const parts = args.split('|').map(p => p.trim());
+    if (parts.length < 2) {
+      await message.reply('❌ Il faut au minimum un **titre** et un **contenu**.\nUsage : `.message titre | contenu`');
+      return;
+    }
+
+    const titre        = parts[0];
+    const contenu      = parts[1].replace(/\\n/g, '\n');
+    const salonMention = parts[2] ?? null;
+    const choixCouleur = parts[3] ?? 'violet';
+    const pingArg      = parts[4]?.toLowerCase() ?? 'false';
+    const doPing       = pingArg === 'true' || pingArg === 'oui';
+
+    // Résolution du salon cible
+    let targetChannel = message.channel;
+    if (salonMention) {
+      const mentionMatch = salonMention.match(/(\d+)/);
+      if (mentionMatch) {
+        const found = message.guild.channels.cache.get(mentionMatch[1]);
+        if (found && found.isTextBased()) targetChannel = found;
+      }
+    }
+
+    // Palette de couleurs
+    const couleurs = {
+      violet: 0x9B59B6,
+      bleu:   0x3498DB,
+      vert:   0x2ECC71,
+      rouge:  0xE74C3C,
+      orange: 0xE67E22,
+      jaune:  0xF1C40F,
+      rose:   0xFF73FA,
+    };
+    const couleur = couleurs[choixCouleur] ?? couleurs.violet;
+
+    const separateurs = {
+      violet: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      bleu:   '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬',
+      vert:   '─────────────────────────────',
+      rouge:  '▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔',
+      orange: '══════════════════════════════',
+      jaune:  '⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯',
+      rose:   '✦·····························✦',
+    };
+    const separateur = separateurs[choixCouleur] ?? separateurs.violet;
+
+    const embedAnnonce = new EmbedBuilder()
+      .setTitle(`📢  ${titre}`)
+      .setColor(couleur)
+      .setDescription(
+        `${separateur}\n\n` +
+        `${contenu}\n\n` +
+        `${separateur}`
+      )
+      .addFields(
+        { name: '👑 Annonce par', value: `${message.author}`, inline: true },
+        { name: '📅 Date', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
+      )
+      .setFooter({ text: 'Azaleees • Annonce officielle', iconURL: message.guild.iconURL({ dynamic: true }) ?? undefined })
+      .setTimestamp();
+
+    await message.delete().catch(() => {});
+
+    try {
+      await targetChannel.send({
+        content: doPing ? '@everyone' : null,
+        embeds: [embedAnnonce],
+      });
+    } catch (error) {
+      console.error('Erreur lors de l\'envoi de l\'annonce :', error);
+      await message.channel.send('❌ Impossible d\'envoyer l\'annonce. Vérifie que j\'ai les permissions d\'écrire dans ce salon.')
+        .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
+    }
+    return;
+  }
+
   // .kick @user raison
   if (content.startsWith('.kick')) {
     const hasRole = message.member && message.member.roles.cache.has(MOD_ROLE_ID);
@@ -355,18 +391,6 @@ client.on('messageCreate', async message => {
 });
 
 client.on('interactionCreate', async interaction => {
-  // Bouton fermer ticket
-  if (interaction.isButton() && interaction.customId === 'fermer_ticket') {
-    const isStaff = STAFF_ROLE_IDS.some(id => interaction.member.roles.cache.has(id));
-    if (!isStaff) {
-      await interaction.reply({ content: '❌ Seul le staff peut fermer un ticket.', ephemeral: true });
-      return;
-    }
-    await interaction.reply({ content: '🔒 Ticket fermé, suppression dans 5 secondes...' });
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
-    return;
-  }
-
   if (!interaction.isChatInputCommand()) return;
 
   if (interaction.commandName === 'ping') {
@@ -375,14 +399,20 @@ client.on('interactionCreate', async interaction => {
   }
 
   if (interaction.commandName === 'aide') {
-    await interaction.reply(
-      '📋 **Commandes disponibles :**\n' +
-      '**/ping** - *Répond Pong 🏓*\n' +
-      '**/aide** - *Affiche cette aide*\n' +
-      '**/chaine** - *Lien vers la chaîne YouTube Azalee*\n' +
-      '**/video** - *Lien vers la dernière vidéo YouTube*\n' +
-      '**/report** [@user] [raison] - *Reporte un utilisateur au staff*'
-    );
+    const embed = new EmbedBuilder()
+      .setTitle('📋 Commandes disponibles')
+      .setColor(0x5865F2)
+      .addFields(
+        { name: '🏓 /ping', value: 'Répond avec Pong', inline: true },
+        { name: '📺 /chaine', value: 'Lien vers la chaîne YouTube', inline: true },
+        { name: '🎬 /video', value: 'Dernière vidéo YouTube', inline: true },
+        { name: '🚨 /report [@user] [raison]', value: 'Signale un utilisateur', inline: true },
+        { name: '📢 .message titre | contenu | #salon | couleur | ping', value: 'Envoie une annonce stylée (staff)', inline: false },
+        { name: '🎉 .giveaway titre | prix | min', value: 'Lance un giveaway (staff)', inline: false },
+      )
+      .setFooter({ text: 'Bot Azaleees' })
+      .setTimestamp();
+    await interaction.reply({ embeds: [embed] });
     return;
   }
 
@@ -400,84 +430,6 @@ client.on('interactionCreate', async interaction => {
       console.error('Erreur en récupérant la dernière vidéo :', error);
       await interaction.editReply(`❌ Impossible de trouver la dernière vidéo. Voici la chaîne : ${YOUTUBE_CHANNEL_URL}`);
     }
-    return;
-  }
-
-  if (interaction.commandName === 'ticket') {
-    const sujet = interaction.options.getString('sujet');
-    const guild = interaction.guild;
-
-    const existing = guild.channels.cache.find(
-      c => c.name === `ticket-${interaction.user.username.toLowerCase()}` && c.parentId === TICKET_CATEGORY_ID
-    );
-    if (existing) {
-      await interaction.reply({ content: `❌ Tu as déjà un ticket ouvert : ${existing}`, ephemeral: true });
-      return;
-    }
-
-    let ticketChannel = null;
-    try {
-      let parentIsCategory = false;
-      if (TICKET_CATEGORY_ID) {
-        const fetched = guild.channels.cache.get(TICKET_CATEGORY_ID) || await guild.channels.fetch(TICKET_CATEGORY_ID).catch(() => null);
-        parentIsCategory = !!(fetched && fetched.type === ChannelType.GuildCategory);
-      }
-
-      const createOptions = {
-        name: `ticket-${interaction.user.username.toLowerCase()}`,
-        permissionOverwrites: [
-          { id: guild.roles.everyone, deny: [PermissionFlagsBits.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-          ...STAFF_ROLE_IDS.map(roleId => ({
-            id: roleId,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
-          })),
-        ],
-      };
-
-      if (parentIsCategory) createOptions.parent = TICKET_CATEGORY_ID;
-
-      ticketChannel = await guild.channels.create(createOptions);
-
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setCustomId('fermer_ticket')
-          .setLabel('🔒 Fermer le ticket')
-          .setStyle(ButtonStyle.Danger)
-      );
-
-      const embedTicket = new EmbedBuilder()
-        .setTitle('🎫 Nouveau ticket')
-        .setColor(0x5865F2)
-        .addFields(
-          { name: '👤 Membre', value: `${interaction.user}`, inline: true },
-          { name: '📋 Sujet', value: sujet, inline: true },
-        )
-        .setDescription(`Le staff va te répondre dès que possible.\n<@&${STAFF_ROLE_IDS[0]}> <@&${STAFF_ROLE_IDS[1]}>`)
-        .setTimestamp();
-
-      await ticketChannel.send({
-        content: `👋 Bienvenue ${interaction.user} !`,
-        embeds: [embedTicket],
-        components: [row],
-      });
-
-      await interaction.reply({ content: `✅ Ton ticket a été créé : ${ticketChannel}`, ephemeral: true });
-    } catch (error) {
-      console.error('Erreur lors de la création du ticket :', error);
-      await interaction.reply({ content: '❌ Impossible de créer le ticket. Contacte un administrateur.', ephemeral: true });
-    }
-    return;
-  }
-
-  if (interaction.commandName === 'fermer-ticket') {
-    const isStaff = STAFF_ROLE_IDS.some(id => interaction.member.roles.cache.has(id));
-    if (!isStaff) {
-      await interaction.reply({ content: '❌ Seul le staff peut fermer un ticket.', ephemeral: true });
-      return;
-    }
-    await interaction.reply({ content: '🔒 Ticket fermé, suppression dans 5 secondes...' });
-    setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
     return;
   }
 
@@ -509,93 +461,6 @@ client.on('interactionCreate', async interaction => {
     }
     return;
   }
-
-  // ─── COMMANDE /message ────────────────────────────────────────────────────
-  if (interaction.commandName === 'message') {
-    // Vérification du rôle
-    const hasRole = interaction.member.roles.cache.has(ANNONCE_ROLE_ID);
-    if (!hasRole) {
-      await interaction.reply({
-        content: '❌ Tu n\'as pas la permission d\'utiliser cette commande.',
-        ephemeral: true,
-      });
-      return;
-    }
-
-    const titre   = interaction.options.getString('titre');
-    const contenu = interaction.options.getString('contenu').replace(/\\n/g, '\n');
-    const salon   = interaction.options.getChannel('salon') ?? interaction.channel;
-    const choixCouleur = interaction.options.getString('couleur') ?? 'violet';
-    const imageUrl = interaction.options.getString('image') ?? null;
-    const doPing  = interaction.options.getBoolean('ping') ?? false;
-
-    // Palette de couleurs
-    const couleurs = {
-      violet: 0x9B59B6,
-      bleu:   0x3498DB,
-      vert:   0x2ECC71,
-      rouge:  0xE74C3C,
-      orange: 0xE67E22,
-      jaune:  0xF1C40F,
-      rose:   0xFF73FA,
-    };
-    const couleur = couleurs[choixCouleur] ?? couleurs.violet;
-
-    // Ligne de séparation décorative selon la couleur
-    const separateurs = {
-      violet: '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      bleu:   '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬',
-      vert:   '─────────────────────────────',
-      rouge:  '▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔▔',
-      orange: '══════════════════════════════',
-      jaune:  '⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯⋯',
-      rose:   '✦·····························✦',
-    };
-    const separateur = separateurs[choixCouleur] ?? separateurs.violet;
-
-    // Construction de l'embed stylé
-    const embedAnnonce = new EmbedBuilder()
-      .setTitle(`📢  ${titre}`)
-      .setColor(couleur)
-      .setDescription(
-        `${separateur}\n\n` +
-        `${contenu}\n\n` +
-        `${separateur}`
-      )
-      .addFields(
-        { name: '👑 Annonce par', value: `${interaction.user}`, inline: true },
-        { name: '📅 Date', value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
-      )
-      .setFooter({ text: 'Azaleees • Annonce officielle', iconURL: interaction.guild.iconURL({ dynamic: true }) ?? undefined })
-      .setTimestamp();
-
-    if (imageUrl) {
-      embedAnnonce.setImage(imageUrl);
-    }
-
-    // Contenu de la mention
-    const pingContent = doPing ? '@everyone\n' : '';
-
-    try {
-      await salon.send({
-        content: pingContent || null,
-        embeds: [embedAnnonce],
-      });
-
-      await interaction.reply({
-        content: `✅ Annonce envoyée avec succès dans ${salon} !`,
-        ephemeral: true,
-      });
-    } catch (error) {
-      console.error('Erreur lors de l\'envoi de l\'annonce :', error);
-      await interaction.reply({
-        content: '❌ Impossible d\'envoyer l\'annonce. Vérifie que j\'ai les permissions d\'écrire dans ce salon.',
-        ephemeral: true,
-      });
-    }
-    return;
-  }
-  // ─────────────────────────────────────────────────────────────────────────
 });
 
 client.login(DISCORD_TOKEN);
