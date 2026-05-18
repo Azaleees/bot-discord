@@ -84,7 +84,7 @@ async function checkYouTube(client) {
 
     // Première exécution : on initialise sans notifier
     if (lastVideoId === null) {
-      lastVideoId = 'fake_ancien_id'; // ← force une notif au prochain check
+      lastVideoId = 'video.id'; // ← force une notif au prochain check
       return;
     }
 
