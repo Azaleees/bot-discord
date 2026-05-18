@@ -83,16 +83,22 @@ async function checkYouTube(client) {
     if (!video) return;
 
     // Première exécution : on initialise sans notifier
-   if (lastVideoId === null) {
-  lastVideoId = 'fake_ancien_id'; // ← force une notif au prochain check
-  return;
-}}
+    if (lastVideoId === null) {
+      lastVideoId = 'fake_ancien_id'; // ← force une notif au prochain check
+      return;
+    }
 
     // Même vidéo qu'avant → rien à faire
     if (video.id === lastVideoId) return;
 
     // Nouvelle vidéo détectée !
     lastVideoId = video.id;
+    // ... reste du code ...
+
+  } catch (err) {
+    console.error('[YouTube] Erreur lors du check :', err.message);
+  }
+}
     console.log(`[YouTube] 🔴 Nouvelle vidéo détectée : ${video.title}`);
 
     const channel = await client.channels.fetch(NOTIF_CHANNEL_ID);
