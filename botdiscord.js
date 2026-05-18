@@ -407,8 +407,7 @@ client.on('interactionCreate', async interaction => {
         { name: '📺 /chaine', value: 'Lien vers la chaîne YouTube', inline: true },
         { name: '🎬 /video', value: 'Dernière vidéo YouTube', inline: true },
         { name: '🚨 /report [@user] [raison]', value: 'Signale un utilisateur', inline: true },
-        { name: '📢 .message titre | contenu | #salon | couleur | ping', value: 'Envoie une annonce stylée (staff)', inline: false },
-        { name: '🎉 .giveaway titre | prix | min', value: 'Lance un giveaway (staff)', inline: false },
+      
       )
       .setFooter({ text: 'Bot Azaleees' })
       .setTimestamp();
