@@ -37,10 +37,10 @@ const MOD_ROLE_ID            = '1398187980664868896';
 const ANNONCE_ROLE_ID        = '1398187980664868896';
 
 // ── YouTube notifs ────────────────────────────
-const YOUTUBE_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID; // UC... (voir étapes)
+const YOUTUBE_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID;
 const NOTIF_CHANNEL_ID     = '1398426864653172937';
 const NOTIF_PING_ROLE_ID   = '1398425212420227192';
-const YT_CHECK_INTERVAL_MS = 60_000; // vérification toutes les 60 secondes
+const YT_CHECK_INTERVAL_MS = 60_000;
 
 // ─────────────────────────────────────────────
 //  YOUTUBE — Récupération flux RSS
@@ -93,12 +93,6 @@ async function checkYouTube(client) {
 
     // Nouvelle vidéo détectée !
     lastVideoId = video.id;
-    // ... reste du code ...
-
-  } catch (err) {
-    console.error('[YouTube] Erreur lors du check :', err.message);
-  }
-}
     console.log(`[YouTube] 🔴 Nouvelle vidéo détectée : ${video.title}`);
 
     const channel = await client.channels.fetch(NOTIF_CHANNEL_ID);
@@ -126,6 +120,7 @@ async function checkYouTube(client) {
       content: `<@&${NOTIF_PING_ROLE_ID}> 🔴 **Nouvelle vidéo en ligne !**`,
       embeds: [embed],
     });
+
   } catch (err) {
     console.error('[YouTube] Erreur lors du check :', err.message);
   }
@@ -282,10 +277,8 @@ client.once('clientReady', () => {
     return;
   }
 
-  // Premier check pour mémoriser la dernière vidéo sans notifier
   checkYouTube(client);
 
-  // Vérification toutes les 60 secondes
   setInterval(() => checkYouTube(client), YT_CHECK_INTERVAL_MS);
   console.log(`[YouTube] ✅ Polling actif (toutes les ${YT_CHECK_INTERVAL_MS / 1000}s)`);
 });
@@ -345,7 +338,6 @@ client.on('messageCreate', async message => {
   }
 
   // ── .message ─────────────────────────────────
-  // Usage : .message titre | contenu | #salon(opt) | couleur(opt) | ping(opt)
   if (content.startsWith('.message ')) {
     if (!message.member?.roles.cache.has(ANNONCE_ROLE_ID)) {
       await message.delete().catch(() => {});
