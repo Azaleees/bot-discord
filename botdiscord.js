@@ -269,7 +269,7 @@ const client = new Client({
 // ─────────────────────────────────────────────
 //  READY
 // ─────────────────────────────────────────────
-client.once('ready', () => {
+client.once('clientReady', () => {
   console.log(`✅ Connecté en tant que ${client.user.tag}`);
 
   if (!YOUTUBE_CHANNEL_ID) {
