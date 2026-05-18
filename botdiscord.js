@@ -83,11 +83,10 @@ async function checkYouTube(client) {
     if (!video) return;
 
     // Première exécution : on initialise sans notifier
-    if (lastVideoId === null) {
-      lastVideoId = video.id;
-      console.log(`[YouTube] Vidéo initiale mémorisée : ${video.title}`);
-      return;
-    }
+   if (lastVideoId === null) {
+  lastVideoId = 'fake_ancien_id'; // ← force une notif au prochain check
+  return;
+}}
 
     // Même vidéo qu'avant → rien à faire
     if (video.id === lastVideoId) return;
