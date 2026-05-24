@@ -401,7 +401,7 @@ client.on('messageCreate', async message => {
 
     await message.delete().catch(() => {});
     try {
-      await targetChannel.send({ content: doPing ? '@everyone' : null, embeds: [embedAnnonce] });
+await targetChannel.send({ content: doPing ? '<@&1508076265016397984>' : null, embeds: [embedAnnonce] });
     } catch {
       await message.channel.send('❌ Impossible d\'envoyer l\'annonce (permissions insuffisantes).')
         .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
