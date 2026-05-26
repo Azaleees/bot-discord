@@ -7,18 +7,15 @@ const {
   REST,
   Routes,
   SlashCommandBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   EmbedBuilder,
 } = require('discord.js');
 
 // ─────────────────────────────────────────────
 //  CONFIG — Variables d'environnement (.env)
 // ─────────────────────────────────────────────
-const DISCORD_TOKEN  = process.env.DISCORD_TOKEN;
-const CLIENT_ID      = process.env.CLIENT_ID;
-const GUILD_ID       = process.env.GUILD_ID; // optionnel
+const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const CLIENT_ID     = process.env.CLIENT_ID;
+const GUILD_ID      = process.env.GUILD_ID; // optionnel
 
 if (!DISCORD_TOKEN || !CLIENT_ID) {
   console.error('❌  DISCORD_TOKEN ou CLIENT_ID manquant dans le .env');
@@ -28,19 +25,30 @@ if (!DISCORD_TOKEN || !CLIENT_ID) {
 // ─────────────────────────────────────────────
 //  IDs fixes
 // ─────────────────────────────────────────────
-const REPORT_CHANNEL_ID      = '1398187982422278231';
-const YOUTUBE_CHANNEL_URL    = 'https://www.youtube.com/@Azaleees';
-const ACTIVITY_ROLE_ID       = '1398187980664868896';
-const GIVEAWAY_ROLE_ID       = '1398187980664868896';
-const GIVEAWAY_PING_ROLE_ID  = '1398187980618727565';
-const MOD_ROLE_ID            = '1398187980664868896';
-const ANNONCE_ROLE_ID        = '1398187980664868896';
+const REPORT_CHANNEL_ID     = '1398187982422278231'; // salon logs/reports
+const YOUTUBE_CHANNEL_URL   = 'https://www.youtube.com/@Azaleees';
+const ACTIVITY_ROLE_ID      = '1398187980664868896';
+const GIVEAWAY_ROLE_ID      = '1398187980664868896';
+const GIVEAWAY_PING_ROLE_ID = '1398187980618727565';
+const MOD_ROLE_ID           = '1398187980664868896';
+const ANNONCE_ROLE_ID       = '1398187980664868896';
 
 // ── YouTube notifs ────────────────────────────
 const YOUTUBE_CHANNEL_ID   = process.env.YOUTUBE_CHANNEL_ID;
 const NOTIF_CHANNEL_ID     = '1398426864653172937';
 const NOTIF_PING_ROLE_ID   = '1398425212420227192';
 const YT_CHECK_INTERVAL_MS = 60_000;
+
+// ─────────────────────────────────────────────
+//  AUTO-BAN — Liste des IDs bannis automatiquement
+//  Ajoute autant d'IDs que tu veux dans ce tableau.
+//  Dès que l'un de ces membres rejoint le serveur,
+//  le bot le bannit instantanément et log dans REPORT_CHANNEL_ID.
+// ─────────────────────────────────────────────
+const BANNED_USER_IDS = [
+  '123456789012345678', // ← remplace par le vrai ID Discord
+  // '987654321098765432', // tu peux en ajouter d'autres
+];
 
 // ─────────────────────────────────────────────
 //  YOUTUBE — Récupération flux RSS
@@ -82,16 +90,13 @@ async function checkYouTube(client) {
     const video = await fetchLatestYouTubeVideo();
     if (!video) return;
 
-    // Première exécution : on initialise sans notifier
     if (lastVideoId === null) {
-      lastVideoId = video.id; // ← force une notif au prochain check
+      lastVideoId = video.id;
       return;
     }
 
-    // Même vidéo qu'avant → rien à faire
     if (video.id === lastVideoId) return;
 
-    // Nouvelle vidéo détectée !
     lastVideoId = video.id;
     console.log(`[YouTube] 🔴 Nouvelle vidéo détectée : ${video.title}`);
 
@@ -142,10 +147,10 @@ async function lancerGiveaway(channel, titre, prix, temps, organisateur) {
       `╚════════════════════╝`
     )
     .addFields(
-      { name: '📌 Titre',       value: `\`\`\`${titre}\`\`\``,                                                              inline: false },
-      { name: '⏳ Se termine',  value: `<t:${Math.floor(finAt / 1000)}:R> • <t:${Math.floor(finAt / 1000)}:T>`,             inline: false },
-      { name: '👑 Organisé par', value: `${organisateur}`,                                                                  inline: true  },
-      { name: '⏱️ Durée',       value: `${temps} minute(s)`,                                                                inline: true  },
+      { name: '📌 Titre',        value: `\`\`\`${titre}\`\`\``,                                                           inline: false },
+      { name: '⏳ Se termine',   value: `<t:${Math.floor(finAt / 1000)}:R> • <t:${Math.floor(finAt / 1000)}:T>`,          inline: false },
+      { name: '👑 Organisé par', value: `${organisateur}`,                                                                inline: true  },
+      { name: '⏱️ Durée',        value: `${temps} minute(s)`,                                                             inline: true  },
     )
     .setFooter({ text: '🎉 Clique sur la réaction ci-dessous pour participer !' })
     .setTimestamp();
@@ -195,9 +200,9 @@ async function lancerGiveaway(channel, titre, prix, temps, organisateur) {
           `╚════════════════════╝`
         )
         .addFields(
-          { name: '📌 Titre',       value: `\`\`\`${titre}\`\`\``,             inline: false },
-          { name: '🥇 Gagnant',     value: `${winner}`,                        inline: true  },
-          { name: '🎟️ Participants', value: `${participants.size} personne(s)`, inline: true  },
+          { name: '📌 Titre',        value: `\`\`\`${titre}\`\`\``,            inline: false },
+          { name: '🥇 Gagnant',      value: `${winner}`,                       inline: true  },
+          { name: '🎟️ Participants',  value: `${participants.size} personne(s)`, inline: true  },
         )
         .setFooter({ text: `Giveaway organisé par ${organisateur.tag ?? organisateur}` })
         .setTimestamp();
@@ -247,7 +252,7 @@ const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
       console.log('✅ Commandes slash enregistrées pour le serveur (GUILD_ID).');
     } else {
       await rest.put(Routes.applicationCommands(CLIENT_ID), { body: commands });
-      console.log('✅ Commandes slash globales enregistrées (jusqu\'à 1h de délai).');
+      console.log('✅ Commandes slash globales enregistrées.');
     }
   } catch (err) {
     console.error('Erreur en enregistrant les commandes slash :', err);
@@ -263,6 +268,7 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMessageReactions,
+    GatewayIntentBits.GuildMembers, // ← nécessaire pour détecter les arrivées
   ],
 });
 
@@ -278,9 +284,55 @@ client.once('clientReady', () => {
   }
 
   checkYouTube(client);
-
   setInterval(() => checkYouTube(client), YT_CHECK_INTERVAL_MS);
   console.log(`[YouTube] ✅ Polling actif (toutes les ${YT_CHECK_INTERVAL_MS / 1000}s)`);
+});
+
+// ─────────────────────────────────────────────
+//  AUTO-BAN — Détection à l'arrivée d'un membre
+//
+//  Quand quelqu'un rejoint le serveur, on vérifie
+//  si son ID est dans BANNED_USER_IDS.
+//  Si oui → ban immédiat + log dans REPORT_CHANNEL_ID.
+// ─────────────────────────────────────────────
+client.on('guildMemberAdd', async member => {
+  // Si l'ID du membre n'est pas dans la liste → on ignore
+  if (!BANNED_USER_IDS.includes(member.id)) return;
+
+  console.log(`[Auto-Ban] 🔨 ${member.user.tag} (${member.id}) détecté — ban en cours...`);
+
+  try {
+    // On vérifie que le bot peut ban ce membre
+    if (!member.bannable) {
+      console.warn(`[Auto-Ban] ⚠️ Impossible de ban ${member.user.tag} (rôle trop élevé ou permissions insuffisantes).`);
+      return;
+    }
+
+    // Ban du membre
+    await member.ban({ reason: 'Banni automatiquement à l\'arrivée (liste noire).' });
+    console.log(`[Auto-Ban] ✅ ${member.user.tag} banni avec succès.`);
+
+    // Log dans le salon REPORT_CHANNEL_ID
+    const logChannel = await client.channels.fetch(REPORT_CHANNEL_ID).catch(() => null);
+    if (logChannel?.isTextBased()) {
+      await logChannel.send({
+        embeds: [new EmbedBuilder()
+          .setTitle('🔨 Auto-Ban — Membre banni à l\'arrivée')
+          .setColor(0xE74C3C)
+          .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
+          .addFields(
+            { name: '👤 Membre',  value: `${member.user.tag}\n\`${member.id}\``,  inline: true  },
+            { name: '📅 Date',    value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true  },
+            { name: '📝 Raison',  value: 'Banni automatiquement (liste noire)',    inline: false },
+          )
+          .setFooter({ text: 'Auto-Ban • Azaleees Bot' })
+          .setTimestamp()],
+      });
+    }
+
+  } catch (err) {
+    console.error('[Auto-Ban] Erreur :', err.message);
+  }
 });
 
 // ─────────────────────────────────────────────
@@ -393,15 +445,15 @@ client.on('messageCreate', async message => {
       .setColor(couleur)
       .setDescription(`${separateur}\n\n${contenu}\n\n${separateur}`)
       .addFields(
-        { name: '👑 Annonce par', value: `${message.author}`,                           inline: true },
-        { name: '📅 Date',        value: `<t:${Math.floor(Date.now() / 1000)}:F>`,      inline: true },
+        { name: '👑 Annonce par', value: `${message.author}`,                      inline: true },
+        { name: '📅 Date',        value: `<t:${Math.floor(Date.now() / 1000)}:F>`, inline: true },
       )
       .setFooter({ text: 'Azaleees • Annonce officielle', iconURL: message.guild.iconURL({ dynamic: true }) ?? undefined })
       .setTimestamp();
 
     await message.delete().catch(() => {});
     try {
-await targetChannel.send({ content: doPing ? '<@&1508076265016397984>' : null, embeds: [embedAnnonce] });
+      await targetChannel.send({ content: doPing ? '<@&1508076265016397984>' : null, embeds: [embedAnnonce] });
     } catch {
       await message.channel.send('❌ Impossible d\'envoyer l\'annonce (permissions insuffisantes).')
         .then(m => setTimeout(() => m.delete().catch(() => {}), 5000));
@@ -455,15 +507,22 @@ await targetChannel.send({ content: doPing ? '<@&1508076265016397984>' : null, e
 
     await mention.ban({ reason: raison });
     await message.delete().catch(() => {});
-    await message.channel.send({
-      embeds: [new EmbedBuilder()
-        .setTitle('🔨 Membre banni').setColor(0xE74C3C)
-        .addFields(
-          { name: '👤 Membre', value: `${mention.user.tag} (${mention.user.id})`, inline: true },
-          { name: '🛡️ Par',   value: `${message.author}`,                        inline: true },
-          { name: '📝 Raison', value: raison,                                    inline: false },
-        ).setTimestamp()],
-    });
+
+    // Log dans le salon fixe
+    const banLogChannel = await client.channels.fetch(REPORT_CHANNEL_ID).catch(() => null);
+    const banEmbed = new EmbedBuilder()
+      .setTitle('🔨 Membre banni').setColor(0xE74C3C)
+      .addFields(
+        { name: '👤 Membre', value: `${mention.user.tag} (${mention.user.id})`, inline: true },
+        { name: '🛡️ Par',   value: `${message.author}`,                        inline: true },
+        { name: '📝 Raison', value: raison,                                    inline: false },
+      ).setTimestamp();
+
+    if (banLogChannel?.isTextBased()) {
+      await banLogChannel.send({ embeds: [banEmbed] });
+    } else {
+      await message.channel.send({ embeds: [banEmbed] });
+    }
     return;
   }
 });
@@ -486,10 +545,10 @@ client.on('interactionCreate', async interaction => {
       embeds: [new EmbedBuilder()
         .setTitle('📋 Commandes disponibles').setColor(0x5865F2)
         .addFields(
-          { name: '🏓 /ping',                    value: 'Répond avec Pong',              inline: true },
-          { name: '📺 /chaine',                  value: 'Lien vers la chaîne YouTube',   inline: true },
-          { name: '🎬 /video',                   value: 'Dernière vidéo YouTube',         inline: true },
-          { name: '🚨 /report [@user] [raison]', value: 'Signale un utilisateur',        inline: true },
+          { name: '🏓 /ping',                    value: 'Répond avec Pong',             inline: true },
+          { name: '📺 /chaine',                  value: 'Lien vers la chaîne YouTube',  inline: true },
+          { name: '🎬 /video',                   value: 'Dernière vidéo YouTube',        inline: true },
+          { name: '🚨 /report [@user] [raison]', value: 'Signale un utilisateur',       inline: true },
         )
         .setFooter({ text: 'Bot Azaleees' }).setTimestamp()],
     });
@@ -528,9 +587,9 @@ client.on('interactionCreate', async interaction => {
         embeds: [new EmbedBuilder()
           .setTitle('🚨 Nouveau report').setColor(0xE74C3C)
           .addFields(
-            { name: '🎯 Utilisateur signalé', value: `${target} (${target.id})`,               inline: true },
+            { name: '🎯 Utilisateur signalé', value: `${target} (${target.id})`,                    inline: true },
             { name: '👤 Signalé par',         value: `${interaction.user} (${interaction.user.id})`, inline: true },
-            { name: '📝 Raison',              value: reason,                                   inline: false },
+            { name: '📝 Raison',              value: reason,                                         inline: false },
           ).setTimestamp()],
       });
       await interaction.reply({ content: '✅ Ton report a bien été envoyé au staff.', ephemeral: true });
